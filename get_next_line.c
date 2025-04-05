@@ -1,16 +1,7 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   get_next_line.c                                    :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: igsanche <marvin@42.fr>                    +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/01/13 14:56:32 by igsanche          #+#    #+#             */
-/*   Updated: 2024/01/13 14:59:42 by igsanche         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
 
-#include "libft.h"
+
+
+#include "minishell.h"
 
 //Main function of GNL
 //It first check if there is something in str_saved. 
