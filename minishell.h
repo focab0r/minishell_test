@@ -1,74 +1,134 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   minishell.h                                        :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: ssousmat <ssousmat@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/01/13 14:56:32 by igsanche          #+#    #+#             */
+/*   Updated: 2025/04/03 15:34:53 by ssousmat         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef MINISHELL_H
 # define MINISHELL_H
 
+# include "libft/libft.h"
+# include <readline/readline.h>
+# include <readline/history.h>
 # include <signal.h>
 # include <linux/limits.h>
-# include <stdio.h>
-# include <stdlib.h>
-# include <unistd.h>
-# include <stdarg.h>
-# include <fcntl.h>
-# include <stdlib.h>
-# include <string.h>
-# include <sys/wait.h>
 
-# ifndef BUFFER_SIZE
-#  define BUFFER_SIZE 42
-# endif
+# define WRITE 1
+# define READ 0
+# define NO_EXEC_PERMISSION 126
+# define CMD_NOT_FOUND 127
+//# define malloc(x) NULL
 
-typedef struct scommand
+# define RESET   "\033[0m"
+# define RED     "\e[1;31m"
+# define GREEN   "\e[1;32m"
+# define YELLOW  "\033[33m"
+# define BLUE    "\e[1;34m"
+# define MAGENTA "\e[1;35m"
+# define CYAN    "\033[36m"
+# define WHITE   "\033[37m"
+
+typedef struct s_command
 {
 	char	*filename;
 	int		argc;
 	char	**argv;
-}	tcommand;
+	pid_t	pid;
+	char	*redirect_input;
+	char	*redirect_output;
+	char	*append_input;		//cambiarlo a heredoc_lim pls (de limitador)
+	char	*append_output;
+}	t_command;
 
-typedef struct sline
+typedef struct s_line
 {
 	int			ncommands;
-	tcommand	*commands;
-	char		*redirect_input;
-	char		*redirect_output;
-	char		*redirect_error;
-	int			background;
-}	tline;
+	t_command	*commands;
+	size_t		cmd_index;
+	int			pipefd[2];
+	int			pipefd2[2];
+}	t_line;
 
-typedef struct swaitpid
+typedef struct s_minishell
 {
-	int		background_commands;
-	int		**waitpid_estructure;
-	char	**inputs;
-	int		*ncommands;
-}	twaitpid;
+	t_line	*line;
+	char	**env;
+	int		exit_value;
+	bool	PWD_flag;
+} t_minishell;
 
-extern twaitpid *pid_stock;
-extern int waiting;
+extern int	g_signal;
 
-//Tokenize
-extern	tline *tokenize(char *str);
-//Execute
-int		*execute_commands(tline *line);
+//Parser
+int		parse_input(t_line **line, char *input, t_minishell *minishell);
+void	print_line(t_line *line);
+void	pass_till_comma(char *input, int *i);
+int		is_special_char(char c);
+void	scape_spaces(char *input, int *i);
+char	*parse_word(char *input, int *i, t_minishell *minishell);
+//	Commands
+void	add_argument_at_end(t_command *command, char *word);
+void	init_command(t_command *l);
+void	add_command_at_end(t_line *line, t_command *command);
+//	Vars
+char	*replace_vars(char *word, t_minishell *minishell);
+char	*check_env(char *word, t_minishell *minishell, int *env_num);
+char	*get_env_header(char *env_var);
+//	Quotes
+char	*escape_quotes(char *str);
+//	Alias
+char	*expand_alias(char *cmd, t_minishell *minishell);
+char	*ft_cmd_in_path(char **div_path, char *cmd, t_minishell *minishell);
+char	**get_path(t_minishell *minishell);
+char	*ft_strdup_protected(char *str, t_minishell *minishell);
+char	*ft_strjoin_protected(char *str1, char *str2, t_minishell *minishell);
+
 //Builtins
-void	builtin_cd(tcommand t);
-void	builtin_jobs();
-void	builtin_fg(tcommand t);
-//GNL
-char	*get_next_line(int fd);
-char	*read_continue(int *cr_f, int *offset, char **str, int *error);
-char	*read_founded(int *error, char **str, char **str_saved, int i_offset);
-char	*clean(char **str, int *error, int malloc_value, int op);
-size_t	strlcpy_and_strlen(char *dest, const char *src, size_t n, int op);
-char	*ft_realloc(char *str, int amount);
-char	*prepare_str(int fd, char **str_saved, int *error, int op);
-char	*read_while(int *cr_f, int *error, char **str, char **str_saved);
-char	*str_saved_contains_n(char **str, int *i, char **str_saved);
-char	*return_str(int error, char **str2, char **str, char **str_saved);
-//PID stock
-void	add_pids(int *aux, int ncommands, char *input);
-int		check_if_line_is_dead(int ncommands, int *waitpid_list, int pid);
-void show_line_as_jobs(int num, char *input, int is_dead);
-void	refresh_pids_cache(int pid);
-void	exec_line_as_job(int nline);
-void	exec_line_as_job(int nline);
+bool	is_builtin(char *str);
+size_t	builtin_echo(t_command command);
+size_t	builtin_cd(t_command command, t_minishell *minishell);
+size_t	builtin_pwd(void);
+size_t	builtin_env(char **env);
+size_t	builtin_export(t_minishell *minishell, t_command command);
+size_t	builtin_unset(t_minishell *minishell, t_command command);
+//	Exit
+size_t	builtin_exit(t_minishell *mini, t_command cmd);
+
+//Launcher
+//	Launcher
+void	exec_builtin(t_command command, t_minishell *minishell, bool son);
+void	save_exit_value(int status, t_minishell *minishell);
+//	Pipex
+void	execute_commands(t_line *line, t_minishell *mini);
+void	ft_waiting_for_my_sons(t_line *line, t_minishell *mini);
+//	Sons
+void	ft_exec_cmd(t_command command, t_minishell *mini);
+void	first_last_son(t_line *line, t_minishell *mini);
+void	parent_reasign_close_fds(t_line *line);
+void	middle_son(t_line *line, t_minishell *mini);
+//	Redirects
+void	pipex_manage_input_heredoc(char *heredoc_lim, t_minishell *mini);
+void	pipex_manage_input_redirect(t_command command, t_minishell *mini);
+void	pipex_manage_output_redirect(t_command command, t_minishell *mini);
+void	son_redirects(t_line *line, size_t cmd_index, t_minishell *mini);
+//	Protected
+void	ft_fork_protected(pid_t *pid, t_minishell *mini);
+void	ft_pipe_protected(int *pipefd, t_minishell *mini);
+void	ft_dup2_protected(int fd1, int fd2, t_minishell *mini);
+
+//Clean
+void	clean_line(t_line *line);
+void	clean_command(t_command command);
+void	clean_env(char **env);
+void	clean_all(t_line *line, char **env);
+
+//Signals
+void	sig_handler(int sig);
 
 #endif
